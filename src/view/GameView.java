@@ -54,12 +54,10 @@ public class GameView extends JFrame implements GameModel.GameModelListener {
         gameTable.setIntercellSpacing(new Dimension(0, 0));
         gameTable.setBackground(Color.BLACK);
 
-        // Ukryj nagłówki
         gameTable.setTableHeader(null);
         gameTable.setShowVerticalLines(false);
         gameTable.setShowHorizontalLines(false);
 
-        // Ustaw rozmiary komórek
         int cellSize = 30;
         for (int i = 0; i < gameTable.getColumnCount(); i++) {
             gameTable.getColumnModel().getColumn(i).setPreferredWidth(cellSize);
@@ -103,20 +101,16 @@ public class GameView extends JFrame implements GameModel.GameModelListener {
 
     public void showGame() {
         if (gameTable != null) {
-            // Oblicz rozmiary
             int tableWidth = gameTable.getColumnCount() * 30;
             int tableHeight = gameTable.getRowCount() * 30;
 
-            // Rozmiar ekranu
             Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
             int maxWidth = (int)(screenSize.width * 0.9);
             int maxHeight = (int)(screenSize.height * 0.8);
 
             JScrollPane scrollPane;
 
-            // DECYZJA: Czy pokazać suwaki?
             if (tableWidth <= maxWidth && tableHeight <= maxHeight - 150) {
-                // MAŁA PLANSZA - BEZ SUWAKÓW
                 scrollPane = new JScrollPane(gameTable,
                         JScrollPane.VERTICAL_SCROLLBAR_NEVER,
                         JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
@@ -124,7 +118,6 @@ public class GameView extends JFrame implements GameModel.GameModelListener {
                 scrollPane.setPreferredSize(new Dimension(tableWidth + 10, tableHeight + 10));
 
             } else {
-                // DUŻA PLANSZA - Z SUWAKAMI
                 scrollPane = new JScrollPane(gameTable,
                         JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
                         JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
@@ -135,7 +128,6 @@ public class GameView extends JFrame implements GameModel.GameModelListener {
                 ));
             }
 
-            // Usuń wszystkie nagłówki
             scrollPane.setColumnHeaderView(null);
             scrollPane.setRowHeaderView(null);
             scrollPane.setCorner(JScrollPane.UPPER_LEFT_CORNER, null);
@@ -215,9 +207,22 @@ public class GameView extends JFrame implements GameModel.GameModelListener {
 
     private void showGameOverDialog(int finalScore) {
         SwingUtilities.invokeLater(() -> {
+            String playerName = JOptionPane.showInputDialog(
+                    this,
+                    "Game Over! Final Score: " + finalScore + "\nEnter your name for high score:",
+                    "Game Over - Save Score",
+                    JOptionPane.QUESTION_MESSAGE
+            );
+
+            if (playerName != null && !playerName.trim().isEmpty()) {
+                controller.saveHighScore(playerName.trim(), finalScore);
+            } else {
+                controller.saveHighScore("Anonymous", finalScore);
+            }
+
             int option = JOptionPane.showConfirmDialog(
                     this,
-                    "Game Over! Final Score: " + finalScore + "\nPlay again?",
+                    "Play again?",
                     "Game Over",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.QUESTION_MESSAGE

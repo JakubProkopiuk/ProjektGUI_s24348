@@ -22,10 +22,10 @@ public class GameModel {
 
     private final Object gameLock = new Object();
 
-    private static final long DOT_RESPAWN_INTERVAL = 5000; // 5 sekund
-    private static final long POWERUP_SPAWN_INTERVAL = 3000; // 3 sekundy
-    private static final double DOT_RESPAWN_CHANCE = 0.3; // 30% szans na respawn kropki
-    private static final double POWERUP_SPAWN_CHANCE = 0.2; // 20% szans na spawn power-up
+    private static final long DOT_RESPAWN_INTERVAL = 5000;
+    private static final long POWERUP_SPAWN_INTERVAL = 3000;
+    private static final double DOT_RESPAWN_CHANCE = 0.3;
+    private static final double POWERUP_SPAWN_CHANCE = 0.2;
 
     public enum GameState {
         MENU, PLAYING, PAUSED, GAME_OVER, VICTORY
@@ -57,6 +57,8 @@ public class GameModel {
             this.lastDotRespawn = System.currentTimeMillis();
             this.lastPowerUpSpawn = System.currentTimeMillis();
             this.gameState = GameState.PLAYING;
+
+            this.activePowerUps.clear();
 
             updateBoardWithEntities();
             notifyModelChanged();
@@ -221,7 +223,6 @@ public class GameModel {
             for (int col = 1; col < gameBoard.getCols() - 1; col++) {
                 Cell cell = gameBoard.getCell(row, col);
                 if (cell != null && cell.getType() == Cell.CellType.EMPTY) {
-                    // Sprawdź czy nie jest za blisko Pacmana lub duchów
                     boolean tooClose = false;
 
                     int pacmanDistance = Math.abs(pacman.getRow() - row) + Math.abs(pacman.getCol() - col);
@@ -246,7 +247,6 @@ public class GameModel {
     }
 
     private void updateBoardWithEntities() {
-        // Wyczyść poprzednie pozycje entity (ale zostaw power-upy, kropki itp.)
         for (int row = 0; row < gameBoard.getRows(); row++) {
             for (int col = 0; col < gameBoard.getCols(); col++) {
                 Cell cell = gameBoard.getCell(row, col);
@@ -261,13 +261,11 @@ public class GameModel {
             }
         }
 
-        // Umieść Pacmana (ale zachowaj to co było w komórce)
         Cell pacmanCell = gameBoard.getCell(pacman.getRow(), pacman.getCol());
         if (pacmanCell != null) {
             pacmanCell.setType(Cell.CellType.PACMAN);
         }
 
-        // Umieść duchy
         for (Ghost ghost : ghosts) {
             Cell ghostCell = gameBoard.getCell(ghost.getRow(), ghost.getCol());
             if (ghostCell != null) {
@@ -363,7 +361,10 @@ public class GameModel {
 
     private void activatePowerUp(PowerUp powerUp) {
         powerUp.activate();
-        activePowerUps.add(powerUp);
+
+        if (!powerUp.getType().isInstant()) {
+            activePowerUps.add(powerUp);
+        }
 
         switch (powerUp.getType()) {
             case SPEED_BOOST:
@@ -382,6 +383,13 @@ public class GameModel {
                 break;
             case WALL_PASS:
                 pacman.setCanPassThroughWalls(true);
+                break;
+            case POWER_MODE:
+                for (Ghost ghost : ghosts) {
+                    ghost.setFrightened(true);
+                }
+                break;
+            case POINT_MAGNET:
                 break;
         }
     }
@@ -434,15 +442,14 @@ public class GameModel {
     }
 
     private void checkGameEndConditions() {
-        // Gra kończy się gdy gracz traci wszystkie życia, nie gdy zbierze wszystkie kropki
-        // (bo kropki się odnawiają)
     }
 
     private void updatePowerUps() {
         Iterator<PowerUp> iterator = activePowerUps.iterator();
         while (iterator.hasNext()) {
             PowerUp powerUp = iterator.next();
-            if (powerUp.isExpired()) {
+
+            if (powerUp.isExpired() || powerUp.getRemainingTimeSeconds() <= 0 || !powerUp.isActive()) {
                 deactivatePowerUp(powerUp);
                 iterator.remove();
             }
@@ -470,7 +477,13 @@ public class GameModel {
             case WALL_PASS:
                 pacman.setCanPassThroughWalls(false);
                 break;
+            case EXTRA_LIFE:
+                break;
+            case POINT_MAGNET:
+                break;
         }
+
+        powerUp.deactivate();
     }
 
     private void resetPositions() {
@@ -488,6 +501,12 @@ public class GameModel {
     public synchronized void endGame() {
         synchronized (gameLock) {
             gameState = GameState.GAME_OVER;
+
+            for (PowerUp powerUp : activePowerUps) {
+                deactivatePowerUp(powerUp);
+            }
+            activePowerUps.clear();
+
             notifyModelChanged();
         }
     }
@@ -517,5 +536,14 @@ public class GameModel {
     public synchronized int getLives() { return lives; }
     public synchronized long getGameTime() { return gameTime; }
     public synchronized GameState getGameState() { return gameState; }
-    public synchronized List<PowerUp> getActivePowerUps() { return new ArrayList<>(activePowerUps); }
+
+    public synchronized List<PowerUp> getActivePowerUps() {
+        List<PowerUp> filteredPowerUps = new ArrayList<>();
+        for (PowerUp powerUp : activePowerUps) {
+            if (powerUp.isActive() && powerUp.getRemainingTimeSeconds() > 0) {
+                filteredPowerUps.add(powerUp);
+            }
+        }
+        return filteredPowerUps;
+    }
 }

@@ -72,6 +72,7 @@ public class GameController implements KeyListener {
 
         if (gameView != null) {
             gameView.setVisible(false);
+            gameView.dispose();
         }
 
         if (menuView != null) {
@@ -110,7 +111,6 @@ public class GameController implements KeyListener {
 
         int keyCode = e.getKeyCode();
 
-        // POPRAWKA: Ctrl+Shift+Q - NATYCHMIASTOWY powrót do menu
         if (e.isControlDown() && e.isShiftDown() && keyCode == KeyEvent.VK_Q) {
             handleForceExit();
             return;
@@ -149,20 +149,20 @@ public class GameController implements KeyListener {
     }
 
     private void handleForceExit() {
-        // DIALOG POKAZUJE SIĘ TYLKO RAZ i z odpowiednią logiką
         SwingUtilities.invokeLater(() -> {
-            int option = JOptionPane.showConfirmDialog(
-                    gameView,
-                    "Are you sure you want to exit to main menu?",
-                    "Exit Game",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.QUESTION_MESSAGE
-            );
+            if (gameRunning) {
+                int option = JOptionPane.showConfirmDialog(
+                        gameView,
+                        "Are you sure you want to exit to main menu?",
+                        "Exit Game",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE
+                );
 
-            if (option == JOptionPane.YES_OPTION) {
-                returnToMenu();
+                if (option == JOptionPane.YES_OPTION) {
+                    returnToMenu();
+                }
             }
-            // Jeśli NO - nic nie rób, dialog zniknie sam
         });
     }
 
